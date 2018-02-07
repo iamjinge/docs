@@ -161,8 +161,78 @@ public class MainActivityTest {
                 .perform(click())
                 .check(matches(not(isDisplayed())));
     }
+
+    @Test
+    public void testUiThread() throws Throwable {
+        System.out.println("waiting");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println("end UI Thread");
+            }
+        });
+        System.out.println("end");
+    }
 }
 ```
 
+Android Test是运行在手机上的，log和System.out.print()输出在logcat里面。JUnit Test是运行在电脑上的，用System.out.print()输出在Run Tab`(Alt+4)`里面。
+
 一般来说，为了做UI测试，需要一个Activity环境，`ActivityTestRule<T>`就是用来初始化这个Activity环境，并且测试开始的时候直接启动指定的Activity，如果指定的Activity启动依赖于Intent，可以使用`ActivityTestRule<T>.launchActivity(Intent startIntent)`启动。在`@Before`里面做一些预备工作。
 
+UI测试一般有三个步骤：**找到View -> 操作View -> 验证View**。有些时候可以不需要操作View，或者说是通过其他的方式改变View，所以操作View可能不会出现。比如我们第一个单元测试`testContent()`就没有操作View。
+
+Espresso库里面带了很多与View相关的方法：
+
+`onView(Matcher<View> viewMatcher) `：用于**找到View**，里面带的`Matcher`称为`ViewMatcher`，[ViewMatchers](https://developer.android.com/reference/android/support/test/espresso/matcher/ViewMatchers.html)里面提供了通用的`Matcher`，用的最多的[`withId(int id)`](https://developer.android.com/reference/android/support/test/espresso/matcher/ViewMatchers.html#withId(int))通过ID找到View。
+
+`check(ViewAssertion viewAssert)`：用于**验证View**，`viewAssert`大多数时候使用`matches(Matcher<? super View> viewMatcher)`就足够满足我们测试需求了。
+
+`perform(ViewAction... viewActions)`：用于**操作View**，`click()`对找到的View触发点击。
+
+需要注意的是**单元测试运行的线程不是主线程**，如果要操作UI，可以使用`UiThreadStatement.runOnUiThread(Runnable)`。这个方法会等到Runnable运行之后再执行后续的测试代码。比如第三个单元测试`testUiThread()`输出结果为：
+
+> waiting
+> end UI Thread
+> end
+
+如果用自己写的Handler来处理，需要注意保证执行顺序。或者是在单元测试中需要等到某个线程执行完毕，才能执行后续操作的时候，可以使用类似下面的方式：
+
+```java
+final Object mutex = new Object();
+Handler mainHandler = new Handler(Looper.getMainLooper());
+System.out.println("waiting");
+mainHandler.post(new Runnable() {
+    @Override
+    public void run() {
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        synchronized (mutex) {
+            mutex.notify();
+        }
+        System.out.println("end UI Thread");
+    }
+});
+synchronized (mutex) {
+    mutex.wait();
+}
+System.out.println("end");
+```
+
+在测试线程`wait()`，然后在需要等待的线程`notify()`。这里的输出结果和上一个里面一样。
+
+在某些时候，如果直接执行Android Test，Android Studio会误识别为JUnit Test，可以在类名之前加上`@RunWith(AndroidJUnit4.class)`。
+
+---
+
+代码地址：[hello-world](https://github.com/iamjinge/AndroidTestingSample/tree/master/helloworld)
+
+这里只是对Android单元测试进行了初步探索，后面进一步研究之后会针对性的展开。
