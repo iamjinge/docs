@@ -71,3 +71,13 @@ https://developer.android.google.cn/guide/components/processes-and-threads.html?
   - https://developer.android.google.cn/guide/components/bound-services.html?hl=zh-cn#Messenger
   - 双向通信，需要在客户端建立一个Messenger和Handler处理服务的消息
 
+
+
+
+Unity UGUI曲面化，改变顶点。类似于canvas.drawBitmapMesh()。
+
+对于图片，需要增加顶点
+
+https://zhuanlan.zhihu.com/p/26799645
+
+### 合理的职责划分、可测试性、易用性、模块化，易于封装与分发
